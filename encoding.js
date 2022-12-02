@@ -93,7 +93,7 @@ export const toUint8Array = encoder => {
  * @param {Encoder} encoder
  * @param {number} len
  */
-const verifyLen = (encoder, len) => {
+export const verifyLen = (encoder, len) => {
   const bufferLen = encoder.cbuf.length
   if (bufferLen - encoder.cpos < len) {
     encoder.bufs.push(buffer.createUint8ArrayViewFromArrayBuffer(encoder.cbuf.buffer, 0, encoder.cpos))
@@ -323,7 +323,7 @@ export const _writeVarStringPolyfill = (encoder, str) => {
  * @param {String} str The string that is to be encoded.
  */
 /* istanbul ignore next */
-export const writeVarString = string.utf8TextEncoder ? _writeVarStringNative : _writeVarStringPolyfill
+export const writeVarString = (string.utf8TextEncoder && string.utf8TextEncoder.encodeInto) ? _writeVarStringNative : _writeVarStringPolyfill
 
 /**
  * Write the content of another Encoder.

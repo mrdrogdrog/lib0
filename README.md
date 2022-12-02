@@ -34,6 +34,7 @@ Each function in this library is tested thoroughly and is not deoptimized by v8 
 
 The code style might be a bit different from what you are used to. Stay open. Most of the design choices have been thought through. The purpose of this code style is to create code that is optimized by the compiler and that results in small code bundles when used with common module bundlers. Keep that in mind when reading the library.
 
+* No polymorphism!
 * Modules should only export pure functions and constants. This way the module bundler can eliminate dead code. The statement `const x = someCondition ? A : B` cannot be eleminated, because it is tied to a condition.
 * Use Classes for structuring data. Classes are well supported by jsdoc and are immediately optimized by the compiler. I.e. prefer `class Coord { constructor (x, y) {  this.x = x; this.y = y} }` instead of `{ x: x, y: y }`, because the compiler needs to be assured that the order of properties does not change. `{ y: y, x: x }` has a different hidden class than `{ x: x, y: y }`, which will lead to code deoptimizations if their use is alternated.
 * The user of your module should never create data objects with the `new` keyword. Prefer exporting factory functions like `const createCoordinate = (x, y) => new Coord(x, y)`.
@@ -321,15 +322,7 @@ to the next byte and read it as unsigned integer.</p></dd>
 <dd><p>Look ahead and read varUint without incrementing position</p></dd>
 <b><code>decoding.peekVarInt(decoder: module:decoding.Decoder): number</code></b><br>
 <dd><p>Look ahead and read varUint without incrementing position</p></dd>
-<b><code>decoding.readVarString(decoder: module:decoding.Decoder): String</code></b><br>
-<dd><p>Read string of variable length</p>
-<ul>
-<li>varUint is used to store the length of the string</li>
-</ul>
-<p>Transforming utf8 to a string is pretty expensive. The code performs 10x better
-when String.fromCodePoint is fed with all characters as arguments.
-But most environments have a maximum number of arguments per functions.
-For effiency reasons we apply a maximum of 10000 characters at once.</p></dd>
+<b><code>decoding.readVarString</code></b><br>
 <b><code>decoding.peekVarString(decoder: module:decoding.Decoder): string</code></b><br>
 <dd><p>Look ahead and read varString without incrementing position</p></dd>
 <b><code>decoding.readFromDataView(decoder: module:decoding.Decoder, len: number): DataView</code></b><br>
@@ -480,6 +473,9 @@ decoding.hasContent(decoder) // => false - all data is read
 <dd><p>The current length of the encoded data.</p></dd>
 <b><code>encoding.toUint8Array(encoder: module:encoding.Encoder): Uint8Array</code></b><br>
 <dd><p>Transform to Uint8Array.</p></dd>
+<b><code>encoding.verifyLen(encoder: module:encoding.Encoder, len: number)</code></b><br>
+<dd><p>Verify that it is possible to write <code>len</code> bytes wtihout checking. If
+necessary, a new Buffer with the required length is attached.</p></dd>
 <b><code>encoding.write(encoder: module:encoding.Encoder, num: number)</code></b><br>
 <dd><p>Write one byte to the encoder.</p></dd>
 <b><code>encoding.set(encoder: module:encoding.Encoder, pos: number, num: number)</code></b><br>
@@ -505,8 +501,7 @@ Position must already be written (i.e. encoder.length &gt; pos)</p></dd>
 <b><code>encoding.writeVarInt(encoder: module:encoding.Encoder, num: number)</code></b><br>
 <dd><p>Write a variable length integer.</p>
 <p>We use the 7th bit instead for signaling that this is a negative number.</p></dd>
-<b><code>encoding.writeVarString(encoder: module:encoding.Encoder, str: String)</code></b><br>
-<dd><p>Write a variable length string.</p></dd>
+<b><code>encoding.writeVarString</code></b><br>
 <b><code>encoding.writeBinaryEncoder(encoder: module:encoding.Encoder, append: module:encoding.Encoder)</code></b><br>
 <dd><p>Write the content of another Encoder.</p></dd>
 <b><code>encoding.writeUint8Array(encoder: module:encoding.Encoder, uint8Array: Uint8Array)</code></b><br>
@@ -703,6 +698,7 @@ In practice, when decoding several million small strings, the GC will kick in mo
 <b><code>map.getConf(name: string): string|null</code></b><br>
 <b><code>map.hasConf</code></b><br>
 <b><code>map.production</code></b><br>
+<b><code>map.supportsColor</code></b><br>
 </dl>
 </details>
 <details><summary><b>[lib0/error]</b> Error helpers.</summary>
@@ -738,6 +734,7 @@ In practice, when decoding several million small strings, the GC will kick in mo
 <b><code>function.equalityStrict(a: T, b: T): boolean</code></b><br>
 <b><code>function.equalityFlat(a: Array&lt;T&gt;|object, b: Array&lt;T&gt;|object): boolean</code></b><br>
 <b><code>function.equalityDeep(a: any, b: any): boolean</code></b><br>
+<b><code>function.isOneOf(value: V, options: Array&lt;OPTS&gt;)</code></b><br>
 </dl>
 </details>
 <details><summary><b>[lib0/lib0]</b> Experimental method to import lib0.</summary>
@@ -815,11 +812,16 @@ In practice, when decoding several million small strings, the GC will kick in mo
 <b><code>()</code></b><br>
 <b><code>(queue: module:list.List&lt;N&gt;)</code></b><br>
 <b><code>()</code></b><br>
-<b><code>ode(queue: module:list.List&lt;N&gt;, node: N)</code></b><br>
+<b><code>(queue: module:list.List&lt;N&gt;, node: N)</code></b><br>
 <dd><p>Remove a single node from the queue. Only works with Queues that operate on Doubly-linked lists of nodes.</p></dd>
+<b><code>()</code></b><br>
+<b><code>ode</code></b><br>
 <b><code>ode()</code></b><br>
 <b><code>etween(queue: module:list.List&lt;N&gt;, left: N| null, right: N| null, node: N)</code></b><br>
 <b><code>etween()</code></b><br>
+<b><code>(queue: module:list.List&lt;N&gt;, node: N, newNode: N)</code></b><br>
+<dd><p>Remove a single node from the queue. Only works with Queues that operate on Doubly-linked lists of nodes.</p></dd>
+<b><code>()</code></b><br>
 <b><code>(queue: module:list.List&lt;N&gt;, n: N)</code></b><br>
 <b><code>()</code></b><br>
 <b><code>nt(queue: module:list.List&lt;N&gt;, n: N)</code></b><br>
@@ -829,6 +831,10 @@ In practice, when decoding several million small strings, the GC will kick in mo
 <b><code>(list: module:list.List&lt;N&gt;): N| null</code></b><br>
 <b><code>()</code></b><br>
 <b><code>(list: module:list.List&lt;N&gt;, f: function(N):M): Array&lt;M&gt;</code></b><br>
+<b><code>()</code></b><br>
+<b><code>(list: module:list.List&lt;N&gt;)</code></b><br>
+<b><code>()</code></b><br>
+<b><code>(list: module:list.List&lt;N&gt;, f: function(N):M)</code></b><br>
 <b><code>()</code></b><br>
 </dl>
 </details>
@@ -1167,8 +1173,8 @@ integrate this algorithm.</p>
 <pre>import * as testing from 'lib0/testing'</pre>
 
 <pre class="prettyprint source lang-js"><code>// test.js template for creating a test executable
-import { runTests } from 'lib0/testing.js'
-import * as log from 'lib0/logging.js'
+import { runTests } from 'lib0/testing'
+import * as log from 'lib0/logging'
 import * as mod1 from './mod1.test.js'
 import * as mod2 from './mod2.test.js'
 import { isBrowser, isNode } from 'lib0/environment.js'
